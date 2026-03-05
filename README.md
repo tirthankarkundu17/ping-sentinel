@@ -57,6 +57,21 @@ make docker-push DOCKER_USER=your_username VERSION=v1.0.0
 make docker-multi-push DOCKER_USER=your_username VERSION=v1.0.0
 ```
 
+## CI/CD Pipeline
+
+A GitHub Actions workflow is provided (located in `.github/workflows/docker-publish.yml`) that automatically builds and pushes multi-architecture images whenever:
+- A push is made to the `main` branch (tags as `:latest`).
+- A version tag (e.g., `v1.2.3`) is pushed.
+
+### Required Secrets
+
+To use the automated pipeline, you must add the following **GitHub Secrets** to your repository:
+- `DOCKERHUB_USERNAME`: Your Docker Hub username.
+- `DOCKERHUB_TOKEN`: A Personal Access Token (PAT) from your Docker Hub account.
+
+> [!TIP]
+> Use a token with **Read & Write** permissions for security instead of your main password.
+
 > [!NOTE]
 > The frontend image is built using Nginx and supports dynamic environment variables. You can set `VITE_API_URL` in your `docker-compose.yml` to point to your backend API without rebuilding the image.
 

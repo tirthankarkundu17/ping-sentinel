@@ -54,10 +54,10 @@ docker-push:
 docker-multi-push:
 	@echo "Creating and using a buildx builder for multi-platform builds..."
 	-docker buildx create --use --name sentinel-builder
-	@echo "Building and pushing multi-platform ($(PLATFORMS)) images to $(DOCKER_USER)..."
-	docker buildx build --platform $(PLATFORMS) -t $(DOCKER_USER)/ping-sentinel-backend:$(VERSION) ./backend --push
-	docker buildx build --platform $(PLATFORMS) -t $(DOCKER_USER)/ping-sentinel-worker:$(VERSION) ./worker --push
-	docker buildx build --platform $(PLATFORMS) -t $(DOCKER_USER)/ping-sentinel-frontend:$(VERSION) ./frontend --push
+	@echo "Building and pushing multi-platform ($(PLATFORMS)) images to $(DOCKER_USER) with version(s): $(VERSION)..."
+	docker buildx build --platform $(PLATFORMS) $(foreach tag,$(VERSION),-t $(DOCKER_USER)/ping-sentinel-backend:$(tag)) ./backend --push
+	docker buildx build --platform $(PLATFORMS) $(foreach tag,$(VERSION),-t $(DOCKER_USER)/ping-sentinel-worker:$(tag)) ./worker --push
+	docker buildx build --platform $(PLATFORMS) $(foreach tag,$(VERSION),-t $(DOCKER_USER)/ping-sentinel-frontend:$(tag)) ./frontend --push
 	@echo "Cleaning up buildx builder..."
 	docker buildx rm sentinel-builder
 

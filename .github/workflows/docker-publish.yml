@@ -7,7 +7,6 @@ on:
   pull_request:
     types: [opened, labeled, synchronize]
     branches: ["main"]
-
   workflow_dispatch:
 
 jobs:
@@ -17,6 +16,12 @@ jobs:
       github.event_name == 'push' || 
       github.event_name == 'workflow_dispatch' || 
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build'))
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [backend, worker, frontend]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,9 +49,10 @@ jobs:
             echo "version=latest" >> $GITHUB_OUTPUT
           fi
 
-
-      - name: Build and Push Multi-Arch Images
+      - name: Build and Push ${{ matrix.service }}
         run: |
           make docker-multi-push \
+            SERVICE=${{ matrix.service }} \
             DOCKER_USER=${{ secrets.DOCKERHUB_USERNAME }} \
-            VERSION=${{ steps.meta.outputs.version }}
+            VERSION=${{ steps.meta.outputs.version }} \
+            EXTRA_FLAGS="--cache-from type=gha,scope=${{ matrix.service }} --cache-to type=gha,mode=max,scope=${{ matrix.service }}"

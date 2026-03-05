@@ -51,15 +51,22 @@ docker-push:
 	docker build -t $(DOCKER_USER)/ping-sentinel-frontend:$(VERSION) ./frontend && docker push $(DOCKER_USER)/ping-sentinel-frontend:$(VERSION)
 
 # Docker Hub - Multi Architecture (using Buildx)
+# Docker Hub - Multi Architecture (using Buildx)
+# Usage: make docker-multi-push SERVICE=backend VERSION=latest
 docker-multi-push:
 	@echo "Creating and using a buildx builder for multi-platform builds..."
 	-docker buildx create --use --name sentinel-builder
-	@echo "Building and pushing multi-platform ($(PLATFORMS)) images to $(DOCKER_USER) with version(s): $(VERSION)..."
-	docker buildx build --platform $(PLATFORMS) $(foreach tag,$(VERSION),-t $(DOCKER_USER)/ping-sentinel-backend:$(tag)) ./backend --push
-	docker buildx build --platform $(PLATFORMS) $(foreach tag,$(VERSION),-t $(DOCKER_USER)/ping-sentinel-worker:$(tag)) ./worker --push
-	docker buildx build --platform $(PLATFORMS) $(foreach tag,$(VERSION),-t $(DOCKER_USER)/ping-sentinel-frontend:$(tag)) ./frontend --push
+	@echo "Building and pushing multi-platform ($(PLATFORMS)) images for $(SERVICE) to $(DOCKER_USER) with version(s): $(VERSION)..."
+	docker buildx build --platform $(PLATFORMS) \
+		$(foreach tag,$(VERSION),-t $(DOCKER_USER)/ping-sentinel-$(SERVICE):$(tag)) \
+		$(EXTRA_FLAGS) ./$(SERVICE) --push
 	@echo "Cleaning up buildx builder..."
 	docker buildx rm sentinel-builder
+
+docker-multi-push-all:
+	$(MAKE) docker-multi-push SERVICE=backend
+	$(MAKE) docker-multi-push SERVICE=worker
+	$(MAKE) docker-multi-push SERVICE=frontend
 
 # Maintenance
 backend-tidy:

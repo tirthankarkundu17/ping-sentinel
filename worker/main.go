@@ -126,6 +126,7 @@ func runDueChecks(ctx context.Context, db *sql.DB) error {
 	}
 	defer rows.Close()
 
+	var monitors []monitor
 	for rows.Next() {
 		var m monitor
 		if err := rows.Scan(
@@ -141,6 +142,11 @@ func runDueChecks(ctx context.Context, db *sql.DB) error {
 		); err != nil {
 			return fmt.Errorf("scan monitor: %w", err)
 		}
+		monitors = append(monitors, m)
+	}
+	rows.Close()
+
+	for _, m := range monitors {
 		if err := executeCheck(ctx, db, m); err != nil {
 			log.Printf("monitor %s check failed: %v", m.ID, err)
 		}

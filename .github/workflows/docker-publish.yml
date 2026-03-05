@@ -38,7 +38,7 @@ jobs:
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_EVENT_NAME == 'pull_request' ]]; then
-            echo "version=Build" >> $GITHUB_OUTPUT
+            echo "version=development" >> $GITHUB_OUTPUT
           else
             echo "version=latest" >> $GITHUB_OUTPUT
           fi

@@ -27,7 +27,22 @@ Full-stack monitoring app with:
 - `worker`: Go polling worker service
 - `backend/migrations/001_init.sql`: initial schema
 
+## Development with Makefile
+
+A `Makefile` is provided as a shortcut for common development tasks:
+
+| Command | Description |
+| ------- | ----------- |
+| `make install` | Install dependencies (Go modules and npm packages) |
+| `make run-api` | Run the Backend API locally |
+| `make run-worker` | Run the Worker service locally |
+| `make run-web` | Run the Frontend React app locally |
+| `make docker-up` | Build and start services using Docker Compose |
+| `make docker-down` | Stop and remove Docker containers |
+| `make tidy` | Run `go mod tidy` in backend and worker |
+
 ## Quick Start (Docker)
+
 
 1. Build and start everything:
 
@@ -52,7 +67,7 @@ Prerequisites:
 cd backend
 cp .env.example .env
 go mod tidy
-go run ./cmd/api
+go run ./cmd/server
 ```
 
 2. Worker:

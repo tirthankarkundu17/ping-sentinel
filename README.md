@@ -39,7 +39,27 @@ A `Makefile` is provided as a shortcut for common development tasks:
 | `make run-web` | Run the Frontend React app locally |
 | `make docker-up` | Build and start services using Docker Compose |
 | `make docker-down` | Stop and remove Docker containers |
+| `make docker-rebuild` | Rebuild and restart services |
+| `make docker-push` | Build and push single-arch images to Docker Hub |
+| `make docker-multi-push` | Build and push multi-arch (amd64/arm64) images |
 | `make tidy` | Run `go mod tidy` in backend and worker |
+| `make clean` | Remove build artifacts and local database |
+
+## Docker Hub Deployment
+
+The `Makefile` supports building and pushing images to Docker Hub. By default, it uses your system username as the Docker Hub namespace.
+
+```bash
+# Push single-arch images
+make docker-push DOCKER_USER=your_username VERSION=v1.0.0
+
+# Push multi-arch images (requires Docker Buildx)
+make docker-multi-push DOCKER_USER=your_username VERSION=v1.0.0
+```
+
+> [!NOTE]
+> The frontend image is built using Nginx and supports dynamic environment variables. You can set `VITE_API_URL` in your `docker-compose.yml` to point to your backend API without rebuilding the image.
+
 
 ## Quick Start (Docker)
 

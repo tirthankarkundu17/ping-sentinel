@@ -1,4 +1,5 @@
 import { useState } from "react";
+import LogoIcon from "./LogoIcon";
 
 export default function AuthForm({ title, submitLabel, onSubmit, footer }) {
   const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ export default function AuthForm({ title, submitLabel, onSubmit, footer }) {
     <div className="flex min-h-[80vh] flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-500/30">
-            <svg className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <LogoIcon className="h-8 w-8 text-white" />
          </div>
          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-slate-900">{title}</h2>
       </div>

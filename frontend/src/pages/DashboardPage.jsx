@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
+import LogoIcon from "../components/LogoIcon";
 
 function MetricCard({ title, value, icon }) {
   return (
@@ -87,67 +88,60 @@ export default function DashboardPage() {
         <div className="px-5 py-4 border-b border-slate-200/60 bg-slate-50/50">
           <h3 className="font-semibold text-slate-800">Your Monitors</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm whitespace-nowrap">
-            <thead className="bg-slate-50/50">
-              <tr>
-                <th className="px-5 py-3.5 text-left font-semibold text-slate-600">Name</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-slate-600 hidden sm:table-cell">URL</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-slate-600">Status</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-slate-600 hidden md:table-cell">Last Check</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-slate-600 text-right">Response Time</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-slate-600 text-right">Uptime %</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {monitors.map((m) => (
-                <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-5 py-4">
-                    <Link className="text-brand-600 font-medium hover:text-brand-800" to={`/monitors/${m.id}`}>
+        {monitors.length === 0 ? (
+          <div className="px-5 py-12 text-center text-slate-500">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+              <LogoIcon className="h-8 w-8 text-slate-400" />
+            </div>
+            <p className="font-medium text-slate-900">No monitors yet</p>
+            <p className="mt-1">Get started by creating a new monitor.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+            {monitors.map((m) => (
+              <div key={m.id} className="group relative flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-brand-300 hover:shadow-md">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <Link className="text-lg font-semibold text-slate-900 group-hover:text-brand-600 truncate block" to={`/monitors/${m.id}`}>
                       {m.name}
                     </Link>
-                    {/* Show URL underneath name strictly on very small screens, where URL column is hidden */}
-                    <div className="text-xs text-slate-500 mt-1 sm:hidden truncate max-w-[150px]">{m.url}</div>
-                  </td>
-                  <td className="px-5 py-4 text-slate-500 hidden sm:table-cell truncate max-w-[200px]" title={m.url}>{m.url}</td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        m.status === "UP"
-                          ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
-                          : m.status === "DOWN"
-                          ? "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/10"
-                          : "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/10"
-                      }`}
-                    >
-                      {m.status === "UP" && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></div>}
-                      {m.status === "DOWN" && <div className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5 animate-pulse"></div>}
-                      {m.status || "UNKNOWN"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-slate-500 hidden md:table-cell">
-                    {m.last_check ? new Date(m.last_check).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : "-"}
-                  </td>
-                  <td className="px-5 py-4 text-slate-600 font-mono text-right">
-                    {m.response_time_ms ? `${m.response_time_ms}ms` : "-"}
-                  </td>
-                  <td className="px-5 py-4 text-slate-600 font-medium text-right">{m.uptime_percent}%</td>
-                </tr>
-              ))}
-              {monitors.length === 0 && (
-                <tr>
-                  <td className="px-5 py-12 text-center text-slate-500" colSpan={6}>
-                    <svg className="mx-auto h-12 w-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="font-medium text-slate-900">No monitors yet</p>
-                    <p className="mt-1">Get started by creating a new monitor.</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    <p className="mt-1 truncate text-sm text-slate-500" title={m.url}>{m.url}</p>
+                  </div>
+                  <span
+                    className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      m.status === "UP"
+                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
+                        : m.status === "DOWN"
+                        ? "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/10"
+                        : "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/10"
+                    }`}
+                  >
+                    {m.status === "UP" && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></div>}
+                    {m.status === "DOWN" && <div className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5 animate-pulse"></div>}
+                    {m.status || "UNKNOWN"}
+                  </span>
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Uptime</p>
+                    <p className="mt-1 font-mono text-sm font-semibold text-slate-700">{m.uptime_percent}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Response</p>
+                    <p className="mt-1 font-mono text-sm font-semibold text-slate-700">{m.response_time_ms ? `${m.response_time_ms}ms` : "-"}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs font-medium text-slate-500">Last Checked</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {m.last_check ? new Date(m.last_check).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : "Never"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,12 +1,39 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PingSentinel</title>
-  </head>
-  <body class="bg-slate-50">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PingSentinel</title>
+  <meta name="description"
+    content="API & Website Monitoring Dashboard — track uptime, response times, and status of your services." />
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#0891b2" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PingSentinel" />
+  <link rel="icon" type="image/png" href="/icon-512x512.png" />
+  <link rel="apple-touch-icon" href="/icon-512x512.png" />
+
+  <!-- Web Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+</head>
+
+<body class="bg-slate-50">
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      console.log("Service Worker registration initiated");
+      window.addEventListener("load", (event) => {
+        console.log("Service Worker registration");
+        navigator.serviceWorker.register("/sw.js").catch((err) => {
+          console.error("Service Worker registration failed", err);
+        });
+      });
+    }
+  </script>
+</body>
+
 </html>

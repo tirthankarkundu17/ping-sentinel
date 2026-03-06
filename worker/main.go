@@ -83,8 +83,8 @@ func newDB(databaseURL string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
+	db.SetMaxOpenConns(2)
+	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -124,8 +124,7 @@ func runDueChecks(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("query due monitors: %w", err)
 	}
-	defer rows.Close()
-
+	var monitors []monitor
 	for rows.Next() {
 		var m monitor
 		if err := rows.Scan(
@@ -139,14 +138,24 @@ func runDueChecks(ctx context.Context, db *sql.DB) error {
 			&m.RequestBody,
 			&m.ExpectedBodyContains,
 		); err != nil {
+			rows.Close()
 			return fmt.Errorf("scan monitor: %w", err)
 		}
+		monitors = append(monitors, m)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate monitors: %w", err)
+	}
+	rows.Close()
+
+	for _, m := range monitors {
 		if err := executeCheck(ctx, db, m); err != nil {
 			log.Printf("monitor %s check failed: %v", m.ID, err)
 		}
 	}
 
-	return rows.Err()
+	return nil
 }
 
 func executeCheck(ctx context.Context, db *sql.DB, m monitor) error {
@@ -199,20 +208,24 @@ func executeCheck(ctx context.Context, db *sql.DB, m monitor) error {
 		}
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
+	// Use a dedicated timeout context for the DB transaction to prevent deadlocks
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer dbCancel()
+
+	tx, err := db.BeginTx(dbCtx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, err := tx.ExecContext(dbCtx, `
 		INSERT INTO monitor_checks (monitor_id, user_id, timestamp, status, response_time_ms, http_status, error_message)
 		VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
 	`, m.ID, m.UserID, status, responseTime, httpStatus, errorMessage); err != nil {
 		return fmt.Errorf("insert monitor check: %w", err)
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, err := tx.ExecContext(dbCtx, `
 		UPDATE monitors
 		SET last_status = ?,
 			last_checked_at = CURRENT_TIMESTAMP,

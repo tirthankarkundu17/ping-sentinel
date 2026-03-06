@@ -15,7 +15,7 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Host:          getEnv("HOST", "localhost"),
+		Host:          getEnv("HOST", "[IP_ADDRESS]"),
 		Port:          getEnv("PORT", "8080"),
 		DatabaseURL:   os.Getenv("DATABASE_URL"),
 		JWTSecret:     os.Getenv("JWT_SECRET"),

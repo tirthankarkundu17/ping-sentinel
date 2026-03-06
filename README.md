@@ -27,7 +27,57 @@ Full-stack monitoring app with:
 - `worker`: Go polling worker service
 - `backend/migrations/001_init.sql`: initial schema
 
+## Development with Makefile
+
+A `Makefile` is provided as a shortcut for common development tasks:
+
+| Command | Description |
+| ------- | ----------- |
+| `make install` | Install dependencies (Go modules and npm packages) |
+| `make run-api` | Run the Backend API locally |
+| `make run-worker` | Run the Worker service locally |
+| `make run-web` | Run the Frontend React app locally |
+| `make docker-up` | Build and start services using Docker Compose |
+| `make docker-down` | Stop and remove Docker containers |
+| `make docker-rebuild` | Rebuild and restart services |
+| `make docker-push` | Build and push single-arch images to Docker Hub |
+| `make docker-multi-push` | Build and push multi-arch (amd64/arm64) images |
+| `make tidy` | Run `go mod tidy` in backend and worker |
+| `make clean` | Remove build artifacts and local database |
+
+## Docker Hub Deployment
+
+The `Makefile` supports building and pushing images to Docker Hub. By default, it uses your system username as the Docker Hub namespace.
+
+```bash
+# Push single-arch images
+make docker-push DOCKER_USER=your_username VERSION=v1.0.0
+
+# Push multi-arch images (requires Docker Buildx)
+make docker-multi-push DOCKER_USER=your_username VERSION=v1.0.0
+```
+
+## CI/CD Pipeline
+
+A GitHub Actions workflow is provided (located in `.github/workflows/docker-publish.yml`) that automatically builds and pushes multi-architecture images whenever:
+- A push is made to the `main` branch (tags as `:latest`).
+- A version tag (e.g., `v1.2.3`) is pushed.
+
+### Required Secrets
+
+To use the automated pipeline, you must add the following **GitHub Secrets** to your repository:
+- `DOCKERHUB_USERNAME`: Your Docker Hub username.
+- `DOCKERHUB_TOKEN`: A Personal Access Token (PAT) from your Docker Hub account.
+
+> [!TIP]
+> Use a token with **Read & Write** permissions for security instead of your main password.
+
+> [!NOTE]
+> The frontend image is built using Nginx and supports dynamic environment variables. You can set `VITE_API_URL` in your `docker-compose.yml` to point to your backend API without rebuilding the image.
+
+
 ## Quick Start (Docker)
+
 
 1. Build and start everything:
 
@@ -52,7 +102,7 @@ Prerequisites:
 cd backend
 cp .env.example .env
 go mod tidy
-go run ./cmd/api
+go run ./cmd/server
 ```
 
 2. Worker:

@@ -2,6 +2,9 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
       colors: {
         brand: {
           50: "#edf8ff",
@@ -9,11 +12,11 @@ export default {
           200: "#b0e4ff",
           300: "#7ed4ff",
           400: "#42beff",
-          500: "#1a9df0",
-          600: "#0f7dcc",
-          700: "#1266a5",
-          800: "#145786",
-          900: "#164970"
+          500: "#0ea5e9", // Adjusted slightly for a more vibrant tech aesthetic
+          600: "#0284c7",
+          700: "#0369a1",
+          800: "#075985",
+          900: "#0c4a6e"
         }
       }
     }

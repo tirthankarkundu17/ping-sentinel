@@ -16,9 +16,9 @@ export default function LoginPage() {
       }}
       footer={
         <>
-          No account?{" "}
-          <Link className="text-brand-700" to="/signup">
-            Create one
+          Not a member?{" "}
+          <Link className="font-semibold text-brand-600 hover:text-brand-500 transition-colors" to="/signup">
+            Create an account
           </Link>
         </>
       }

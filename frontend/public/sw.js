@@ -1,5 +1,5 @@
-const CACHE_NAME = "ping-sentinel-v1";
-const STATIC_ASSETS = ["/", "/index.html", "/manifest.json", "/sw.js", "/icon-512x512.png"];
+const CACHE_NAME = "ping-sentinel-v2";
+const STATIC_ASSETS = ["/", "/index.html", "/manifest.json", "/sw.js", "/icon.svg"];
 
 // Install — cache the app shell
 self.addEventListener("install", (event) => {

@@ -5,7 +5,7 @@ DOCKER_USER ?= $(USER)
 VERSION ?= latest
 PLATFORMS ?= linux/amd64,linux/arm64
 
-.PHONY: all install run-api run-worker run-web docker-up docker-down docker-rebuild docker-push docker-multi-push backend-tidy worker-tidy tidy clean
+.PHONY: all install run run-api run-worker run-web docker-up docker-down docker-rebuild docker-push docker-multi-push backend-tidy worker-tidy tidy clean
 
 
 # Default target
@@ -20,7 +20,12 @@ install:
 	@echo "Installing frontend dependencies..."
 	cd frontend && npm install
 
-# Running services locally (without Docker)
+# Run all services locally (without Docker)
+run:
+	@echo "Starting all services..."
+	$(MAKE) -j3 run-api run-worker run-web
+
+# Running individual services locally
 run-api:
 	@echo "Starting Backend API..."
 	cd backend && go run ./cmd/server

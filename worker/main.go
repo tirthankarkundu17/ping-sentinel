@@ -75,12 +75,13 @@ func main() {
 		case <-ticker.C:
 			if err := runDueChecks(context.Background(), db); err != nil {
 				log.Printf("due-check batch failed: %v", err)
-			} else {
-				log.Printf("due-check batch completed")
 			}
 			if ttlDays > 0 {
+				log.Println("starting expired checks cleanup")
 				if err := deleteExpiredChecks(context.Background(), db, ttlDays); err != nil {
 					log.Printf("expired checks cleanup failed: %v", err)
+				} else {
+					log.Println("expired checks cleanup completed")
 				}
 			}
 		case sig := <-sigC:

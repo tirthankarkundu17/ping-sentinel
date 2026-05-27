@@ -202,10 +202,14 @@ func (h *Handler) GetMonitorDetails(c *fiber.Ctx) error {
 
 	var monitor fiber.Map
 	row := h.DB.QueryRowContext(c.Context(), `
-		SELECT id, name, url, type, method, expected_status_code, expected_response_time_ms,
-			check_interval_seconds, COALESCE(headers, '{}'), request_body, expected_body_contains,
-			enabled, last_status, last_checked_at, last_response_time_ms, created_at, updated_at
-		FROM monitors WHERE id=? AND user_id=?
+		SELECT m.id, m.name, m.url, m.type, m.method, m.expected_status_code, m.expected_response_time_ms,
+			m.check_interval_seconds, COALESCE(m.headers, '{}'), m.request_body, m.expected_body_contains,
+			m.enabled, m.last_status, m.last_checked_at, m.last_response_time_ms, m.created_at, m.updated_at,
+			COALESCE((
+				SELECT ROUND(100.0 * SUM(CASE WHEN status='UP' THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 2)
+				FROM monitor_checks mc WHERE mc.monitor_id = m.id
+			), 0) AS uptime_percent
+		FROM monitors m WHERE m.id=? AND m.user_id=?
 	`, monitorID, userID)
 
 	var (
@@ -217,10 +221,11 @@ func (h *Handler) GetMonitorDetails(c *fiber.Ctx) error {
 		lastCheckedAt                                   *time.Time
 		lastResponseTime                                *int
 		createdAt, updatedAt                            time.Time
+		uptimePercent                                   float64
 	)
 	if err := row.Scan(&id, &name, &url, &monitorType, &method, &expectedStatus, &expectedResp, &interval,
 		&headersText, &requestBody, &expectedBodyContains, &enabled, &lastStatus, &lastCheckedAt,
-		&lastResponseTime, &createdAt, &updatedAt); err != nil {
+		&lastResponseTime, &createdAt, &updatedAt, &uptimePercent); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "monitor not found"})
 	}
 	monitor = fiber.Map{
@@ -241,6 +246,7 @@ func (h *Handler) GetMonitorDetails(c *fiber.Ctx) error {
 		"last_response_time_ms":     lastResponseTime,
 		"created_at":                createdAt,
 		"updated_at":                updatedAt,
+		"uptime_percent":            uptimePercent,
 	}
 
 	checksRows, err := h.DB.QueryContext(c.Context(), `

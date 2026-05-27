@@ -46,15 +46,22 @@ func main() {
 		pollSeconds = 30
 	}
 
+	ttlDays := getEnvInt("MONITOR_CHECK_TTL_DAYS", 7)
+
 	db, err := newDB(databaseURL)
 	if err != nil {
 		log.Fatalf("database connection error: %v", err)
 	}
 	defer db.Close()
 
-	log.Printf("worker started (poll=%ds)", pollSeconds)
+	log.Printf("worker started (poll=%ds, ttl=%dd)", pollSeconds, ttlDays)
 	if err := runDueChecks(context.Background(), db); err != nil {
 		log.Printf("initial due-check batch failed: %v", err)
+	}
+	if ttlDays > 0 {
+		if err := deleteExpiredChecks(context.Background(), db, ttlDays); err != nil {
+			log.Printf("initial expired checks cleanup failed: %v", err)
+		}
 	}
 
 	ticker := time.NewTicker(time.Duration(pollSeconds) * time.Second)
@@ -70,6 +77,11 @@ func main() {
 				log.Printf("due-check batch failed: %v", err)
 			} else {
 				log.Printf("due-check batch completed")
+			}
+			if ttlDays > 0 {
+				if err := deleteExpiredChecks(context.Background(), db, ttlDays); err != nil {
+					log.Printf("expired checks cleanup failed: %v", err)
+				}
 			}
 		case sig := <-sigC:
 			log.Printf("received signal %s, shutting down worker", sig)
@@ -302,4 +314,27 @@ func getEnvInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func deleteExpiredChecks(ctx context.Context, db *sql.DB, ttlDays int) error {
+	if ttlDays <= 0 {
+		return nil
+	}
+
+	dbCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	res, err := db.ExecContext(dbCtx, `
+		DELETE FROM monitor_checks
+		WHERE timestamp < datetime('now', '-' || ? || ' days')
+	`, ttlDays)
+	if err != nil {
+		return fmt.Errorf("delete expired checks: %w", err)
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected > 0 {
+		log.Printf("deleted %d expired check records from monitor_checks", rowsAffected)
+	}
+	return nil
 }

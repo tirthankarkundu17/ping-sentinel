@@ -24,6 +24,7 @@ const defaultMonitor = {
   headers: "{}",
   request_body: "",
   expected_body_contains: "",
+  slack_webhook_url: "",
   enabled: true,
 };
 
@@ -35,6 +36,7 @@ export default function MonitorForm({ initialValue, onSubmit, onCancel }) {
           headers: initialValue.headers || "{}",
           request_body: initialValue.request_body || "",
           expected_body_contains: initialValue.expected_body_contains || "",
+          slack_webhook_url: initialValue.slack_webhook_url || "",
         }
       : defaultMonitor
   );
@@ -77,6 +79,7 @@ export default function MonitorForm({ initialValue, onSubmit, onCancel }) {
       check_interval_seconds: interval,
       request_body: form.request_body || null,
       expected_body_contains: form.expected_body_contains || null,
+      slack_webhook_url: form.slack_webhook_url || null,
     });
   };
 
@@ -186,6 +189,16 @@ export default function MonitorForm({ initialValue, onSubmit, onCancel }) {
           />
         </Field>
       </div>
+
+      <Field label="Slack Webhook URL (optional)">
+        <input
+          type="url"
+          placeholder="https://hooks.slack.com/services/..."
+          className="w-full rounded-md border border-slate-300 px-3 py-2"
+          value={form.slack_webhook_url}
+          onChange={(e) => setForm({ ...form, slack_webhook_url: e.target.value })}
+        />
+      </Field>
 
       <Field label="Headers (JSON)">
         <textarea

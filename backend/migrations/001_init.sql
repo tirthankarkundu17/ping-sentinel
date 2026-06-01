@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS monitors (
   last_status TEXT,
   last_checked_at DATETIME,
   last_response_time_ms INT,
+  slack_webhook_url TEXT,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

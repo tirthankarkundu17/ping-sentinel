@@ -65,9 +65,17 @@ export default function MonitorDetailsPage() {
                 {monitor.last_status || "UNKNOWN"}
               </span>
           </div>
-          <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
              <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">{monitor.method}</span>
              <a href={monitor.url} target="_blank" rel="noreferrer" className="hover:text-brand-600 truncate max-w-[280px] sm:max-w-md">{monitor.url}</a>
+             {monitor.slack_webhook_url && (
+               <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-semibold border border-indigo-200">
+                 <svg className="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
+                   <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523 2.528 2.528 0 0 1-2.522-2.523 2.528 2.528 0 0 1 2.522-2.52h2.52v2.52zm1.261 0a2.528 2.528 0 0 1 2.52-2.52h5.043a2.528 2.528 0 0 1 2.522 2.52v5.042a2.528 2.528 0 0 1-2.522 2.52H8.823a2.528 2.528 0 0 1-2.52-2.52v-5.042zM8.823 5.043a2.528 2.528 0 0 1-2.52-2.52c0-1.395 1.13-2.523 2.52-2.523a2.528 2.528 0 0 1 2.522 2.523v2.52h-2.522zm0 1.261a2.528 2.528 0 0 1 2.522 2.52v5.043a2.528 2.528 0 0 1-2.522 2.52H3.78a2.528 2.528 0 0 1-2.52-2.52V8.824a2.528 2.528 0 0 1 2.52-2.52h5.043zm10.135 3.761a2.528 2.528 0 0 1 2.52-2.52 2.528 2.528 0 0 1 2.522 2.52 2.528 2.528 0 0 1-2.522 2.52h-2.52v-2.52zm-1.262 0a2.528 2.528 0 0 1-2.52 2.52H10.13a2.528 2.528 0 0 1-2.52-2.52V5.043a2.528 2.528 0 0 1 2.52-2.52h5.043a2.528 2.528 0 0 1 2.52 2.52v5.042zm-3.761 10.135a2.528 2.528 0 0 1 2.52 2.52c0 1.395-1.13 2.522-2.52 2.522a2.528 2.528 0 0 1-2.522-2.522v-2.52h2.522zm0-1.262a2.528 2.528 0 0 1-2.522-2.52v-5.043a2.528 2.528 0 0 1 2.522-2.52h5.043a2.528 2.528 0 0 1 2.52 2.52v5.043a2.528 2.528 0 0 1-2.52-2.52h-5.043z"/>
+                 </svg>
+                 Slack Alerts Enabled
+               </span>
+             )}
           </div>
         </div>
         <Link to="/monitors" className="inline-flex justify-center items-center rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors w-full sm:w-auto">

@@ -24,6 +24,7 @@ import (
 type monitor struct {
 	ID                     string
 	UserID                 string
+	Name                   string
 	URL                    string
 	Method                 string
 	ExpectedStatusCode     int
@@ -31,6 +32,8 @@ type monitor struct {
 	Headers                sql.NullString
 	RequestBody            sql.NullString
 	ExpectedBodyContains   sql.NullString
+	LastStatus             sql.NullString
+	SlackWebhookURL        sql.NullString
 }
 
 func main() {
@@ -123,8 +126,8 @@ func newDB(databaseURL string) (*sql.DB, error) {
 
 func runDueChecks(ctx context.Context, db *sql.DB) error {
 	rows, err := db.QueryContext(ctx, `
-		SELECT id, user_id, url, method, expected_status_code, expected_response_time_ms,
-			headers, request_body, expected_body_contains
+		SELECT id, user_id, name, url, method, expected_status_code, expected_response_time_ms,
+			headers, request_body, expected_body_contains, last_status, slack_webhook_url
 		FROM monitors
 		WHERE enabled = 1
 			AND (
@@ -143,6 +146,7 @@ func runDueChecks(ctx context.Context, db *sql.DB) error {
 		if err := rows.Scan(
 			&m.ID,
 			&m.UserID,
+			&m.Name,
 			&m.URL,
 			&m.Method,
 			&m.ExpectedStatusCode,
@@ -150,6 +154,8 @@ func runDueChecks(ctx context.Context, db *sql.DB) error {
 			&m.Headers,
 			&m.RequestBody,
 			&m.ExpectedBodyContains,
+			&m.LastStatus,
+			&m.SlackWebhookURL,
 		); err != nil {
 			rows.Close()
 			return fmt.Errorf("scan monitor: %w", err)
@@ -253,7 +259,104 @@ func executeCheck(ctx context.Context, db *sql.DB, m monitor) error {
 		return fmt.Errorf("commit tx: %w", err)
 	}
 
+	// Trigger alert if there is a state change and slack webhook is configured
+	if m.SlackWebhookURL.Valid && m.SlackWebhookURL.String != "" {
+		prevStatus := m.LastStatus.String // "UP", "DOWN", or ""
+		if (status == "DOWN" && (prevStatus == "UP" || prevStatus == "")) || (status == "UP" && prevStatus == "DOWN") {
+			log.Printf("[alert] status transition detected for monitor %s (%s): %s -> %s. Sending Slack alert.", m.ID, m.Name, prevStatus, status)
+			go sendSlackAlert(m.SlackWebhookURL.String, m.Name, m.URL, status, httpStatus, responseTime, errorMessage)
+		}
+	}
+
 	return nil
+}
+
+func sendSlackAlert(webhookURL string, name string, url string, status string, httpStatus *int, responseTime *int, errMsg *string) {
+	type SlackField struct {
+		Title string `json:"title"`
+		Value string `json:"value"`
+		Short bool   `json:"short"`
+	}
+	type SlackAttachment struct {
+		Fallback string       `json:"fallback"`
+		Color    string       `json:"color"`
+		Title    string       `json:"title"`
+		Text     string       `json:"text"`
+		Fields   []SlackField `json:"fields"`
+		Ts       int64        `json:"ts"`
+	}
+	type SlackPayload struct {
+		Attachments []SlackAttachment `json:"attachments"`
+	}
+
+	color := "#2eb886" // Green for Recovery/UP
+	emoji := "✅"
+	title := fmt.Sprintf("%s Monitor Resolved: %s", emoji, name)
+	text := fmt.Sprintf("Monitor *%s* is back UP.", name)
+
+	if status == "DOWN" {
+		color = "#e01e5a" // Red for DOWN
+		emoji = "🚨"
+		title = fmt.Sprintf("%s Monitor Down: %s", emoji, name)
+		text = fmt.Sprintf("Monitor *%s* went DOWN.", name)
+	}
+
+	fields := []SlackField{
+		{Title: "URL", Value: url, Short: true},
+	}
+	if responseTime != nil {
+		fields = append(fields, SlackField{Title: "Response Time", Value: fmt.Sprintf("%dms", *responseTime), Short: true})
+	}
+	if httpStatus != nil {
+		fields = append(fields, SlackField{Title: "HTTP Status", Value: fmt.Sprintf("%d", *httpStatus), Short: true})
+	}
+	if errMsg != nil && *errMsg != "" {
+		fields = append(fields, SlackField{Title: "Reason/Error", Value: *errMsg, Short: false})
+	}
+
+	payload := SlackPayload{
+		Attachments: []SlackAttachment{
+			{
+				Fallback: fmt.Sprintf("[%s] %s - %s", status, name, url),
+				Color:    color,
+				Title:    title,
+				Text:     text,
+				Fields:   fields,
+				Ts:       time.Now().Unix(),
+			},
+		},
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("[alert] failed to marshal slack payload: %v", err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		log.Printf("[alert] failed to create slack http request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[alert] failed to send slack alert: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		log.Printf("[alert] slack webhook returned bad status code %d: %s", resp.StatusCode, string(respBody))
+	} else {
+		log.Printf("[alert] slack alert sent successfully for %s", name)
+	}
 }
 
 func performRequest(ctx context.Context, method, url string, headers map[string]string, reqBody []byte) (int, string, error) {

@@ -37,6 +37,7 @@ export default function MonitorsPage() {
       "headers",
       "request_body",
       "expected_body_contains",
+      "slack_webhook_url",
       "enabled"
     ];
 
@@ -67,6 +68,7 @@ export default function MonitorsPage() {
         escapeCSV(headersStr),
         escapeCSV(m.request_body),
         escapeCSV(m.expected_body_contains),
+        escapeCSV(m.slack_webhook_url),
         escapeCSV(m.enabled ? "true" : "false")
       ];
       csvRows.push(row.join(","));
@@ -125,7 +127,7 @@ export default function MonitorsPage() {
     const required = ["name", "url", "type", "method", "check_interval_seconds"];
 
     const indices = {};
-    for (const field of ["name", "url", "type", "method", "expected_status_code", "expected_response_time_ms", "check_interval_seconds", "headers", "request_body", "expected_body_contains", "enabled"]) {
+    for (const field of ["name", "url", "type", "method", "expected_status_code", "expected_response_time_ms", "check_interval_seconds", "headers", "request_body", "expected_body_contains", "slack_webhook_url", "enabled"]) {
       indices[field] = headerRow.indexOf(field);
     }
 
@@ -155,6 +157,7 @@ export default function MonitorsPage() {
       const headersRaw = getValue("headers");
       const requestBodyVal = getValue("request_body");
       const bodyContainsVal = getValue("expected_body_contains");
+      const slackWebhookUrlVal = getValue("slack_webhook_url");
       const enabledRaw = getValue("enabled");
 
       if (!name || !urlVal) {
@@ -211,6 +214,7 @@ export default function MonitorsPage() {
         headers: headersObj,
         request_body: requestBodyVal || null,
         expected_body_contains: bodyContainsVal || null,
+        slack_webhook_url: slackWebhookUrlVal || null,
         enabled
       });
     }

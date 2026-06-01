@@ -7,6 +7,7 @@ const intervals = [
   { label: "2 minutes", value: 120 },
   { label: "5 minutes", value: 300 },
   { label: "10 minutes", value: 600 },
+  { label: "14 minutes", value: 840 },
   { label: "30 minutes", value: 1800 },
   { label: "1 hour", value: 3600 },
   { label: "Custom...", value: "custom" },

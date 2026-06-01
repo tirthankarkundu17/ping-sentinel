@@ -18,8 +18,8 @@ func (h *Handler) DashboardOverview(c *fiber.Ctx) error {
 	err := h.DB.QueryRowContext(c.Context(), `
 		SELECT
 			COUNT(*) AS total,
-			SUM(CASE WHEN last_status='UP' THEN 1 ELSE 0 END) AS up,
-			SUM(CASE WHEN last_status='DOWN' THEN 1 ELSE 0 END) AS down,
+			COALESCE(SUM(CASE WHEN last_status='UP' THEN 1 ELSE 0 END), 0) AS up,
+			COALESCE(SUM(CASE WHEN last_status='DOWN' THEN 1 ELSE 0 END), 0) AS down,
 			AVG(last_response_time_ms) AS avg_response_time
 		FROM monitors
 		WHERE user_id=?

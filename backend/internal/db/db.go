@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -52,5 +53,107 @@ func InitSchema(db *sql.DB, schemaPath string) error {
 	if _, err := db.Exec(string(content)); err != nil {
 		return fmt.Errorf("apply schema: %w", err)
 	}
+	return nil
+}
+
+func MigrateSchema(db *sql.DB) error {
+	var tableSQL string
+	err := db.QueryRow(`SELECT sql FROM sqlite_master WHERE type='table' AND name='monitors'`).Scan(&tableSQL)
+	if err == sql.ErrNoRows {
+		// Table doesn't exist yet, it will be created by InitSchema
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("check schema: %w", err)
+	}
+
+	// If the table SQL contains the old constraint, we need to migrate it
+	if strings.Contains(tableSQL, "check_interval_seconds IN (30, 60, 300, 600)") {
+		ctx := context.Background()
+		conn, err := db.Conn(ctx)
+		if err != nil {
+			return fmt.Errorf("get db connection: %w", err)
+		}
+		defer conn.Close()
+
+		// Disable foreign keys on this connection for table rebuild
+		if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = OFF;"); err != nil {
+			return fmt.Errorf("disable foreign keys: %w", err)
+		}
+
+		tx, err := conn.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin migration tx: %w", err)
+		}
+		defer func() { _ = tx.Rollback() }()
+
+		// Create a temporary new table with the relaxed check constraint
+		_, err = tx.ExecContext(ctx, `
+			CREATE TABLE IF NOT EXISTS monitors_new (
+			  id TEXT PRIMARY KEY,
+			  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			  name TEXT NOT NULL,
+			  url TEXT NOT NULL,
+			  type TEXT NOT NULL CHECK (type IN ('website', 'api')),
+			  method TEXT NOT NULL CHECK (method IN ('GET', 'POST', 'PUT', 'DELETE')),
+			  expected_status_code INT NOT NULL,
+			  expected_response_time_ms INT NOT NULL,
+			  check_interval_seconds INT NOT NULL CHECK (check_interval_seconds >= 5),
+			  headers TEXT DEFAULT '{}',
+			  request_body TEXT,
+			  expected_body_contains TEXT,
+			  enabled BOOLEAN NOT NULL DEFAULT 1,
+			  last_status TEXT,
+			  last_checked_at DATETIME,
+			  last_response_time_ms INT,
+			  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			);
+		`)
+		if err != nil {
+			return fmt.Errorf("create monitors_new table: %w", err)
+		}
+
+		// Copy data from the old table
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO monitors_new (
+				id, user_id, name, url, type, method, expected_status_code, expected_response_time_ms,
+				check_interval_seconds, headers, request_body, expected_body_contains, enabled,
+				last_status, last_checked_at, last_response_time_ms, created_at, updated_at
+			)
+			SELECT
+				id, user_id, name, url, type, method, expected_status_code, expected_response_time_ms,
+				check_interval_seconds, headers, request_body, expected_body_contains, enabled,
+				last_status, last_checked_at, last_response_time_ms, created_at, updated_at
+			FROM monitors;
+		`)
+		if err != nil {
+			return fmt.Errorf("copy data to monitors_new: %w", err)
+		}
+
+		// Drop old table
+		if _, err := tx.ExecContext(ctx, `DROP TABLE monitors;`); err != nil {
+			return fmt.Errorf("drop old monitors table: %w", err)
+		}
+
+		// Rename new table to original name
+		if _, err := tx.ExecContext(ctx, `ALTER TABLE monitors_new RENAME TO monitors;`); err != nil {
+			return fmt.Errorf("rename monitors_new: %w", err)
+		}
+
+		// Recreate index
+		if _, err := tx.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_monitors_user_id ON monitors(user_id);`); err != nil {
+			return fmt.Errorf("recreate index: %w", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration tx: %w", err)
+		}
+
+		// Re-enable foreign keys
+		if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON;"); err != nil {
+			return fmt.Errorf("enable foreign keys: %w", err)
+		}
+	}
+
 	return nil
 }

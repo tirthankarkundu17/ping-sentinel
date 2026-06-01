@@ -294,9 +294,8 @@ func validateMonitorRequest(req monitorRequest) error {
 	if req.ExpectedResponseTimeMS <= 0 {
 		return fmt.Errorf("expected_response_time_ms must be positive")
 	}
-	validIntervals := map[int]bool{30: true, 60: true, 300: true, 600: true}
-	if !validIntervals[req.CheckIntervalSeconds] {
-		return fmt.Errorf("check_interval_seconds must be 30, 60, 300, or 600")
+	if req.CheckIntervalSeconds < 5 || req.CheckIntervalSeconds > 86400 {
+		return fmt.Errorf("check_interval_seconds must be between 5 and 86400 seconds")
 	}
 	validTypes := map[string]bool{"website": true, "api": true}
 	if !validTypes[req.Type] {

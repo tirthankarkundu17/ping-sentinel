@@ -31,6 +31,10 @@ func main() {
 		log.Fatalf("db schema init error: %v", err)
 	}
 
+	if err := db.MigrateSchema(sqlDB); err != nil {
+		log.Fatalf("db schema migration error: %v", err)
+	}
+
 	h := handlers.New(sqlDB, cfg.JWTSecret)
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{

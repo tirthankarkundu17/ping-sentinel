@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,6 +22,7 @@ type monitorRequest struct {
 	Headers                map[string]string `json:"headers"`
 	RequestBody            *string           `json:"request_body"`
 	ExpectedBodyContains   *string           `json:"expected_body_contains"`
+	SlackWebhookURL        *string           `json:"slack_webhook_url"`
 	Enabled                bool              `json:"enabled"`
 }
 
@@ -30,7 +32,7 @@ func (h *Handler) ListMonitors(c *fiber.Ctx) error {
 	rows, err := h.DB.QueryContext(c.Context(), `
 		SELECT m.id, m.name, m.url, m.type, m.method, m.expected_status_code,
 			m.expected_response_time_ms, m.check_interval_seconds, COALESCE(m.headers, '{}'),
-			m.request_body, m.expected_body_contains, m.enabled, m.last_status, m.last_checked_at,
+			m.request_body, m.expected_body_contains, m.slack_webhook_url, m.enabled, m.last_status, m.last_checked_at,
 			m.last_response_time_ms, m.created_at, m.updated_at,
 			COALESCE((
 				SELECT ROUND(100.0 * SUM(CASE WHEN status='UP' THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 2)
@@ -50,7 +52,7 @@ func (h *Handler) ListMonitors(c *fiber.Ctx) error {
 		var (
 			id, name, url, monitorType, method, headersText string
 			expectedStatus, expectedResp, interval          int
-			requestBody, expectedBodyContains               *string
+			requestBody, expectedBodyContains, slackWebhook *string
 			enabled                                         bool
 			lastStatus                                      *string
 			lastCheckedAt                                   *time.Time
@@ -59,7 +61,7 @@ func (h *Handler) ListMonitors(c *fiber.Ctx) error {
 			uptimePercent                                   float64
 		)
 		if err := rows.Scan(&id, &name, &url, &monitorType, &method, &expectedStatus, &expectedResp, &interval,
-			&headersText, &requestBody, &expectedBodyContains, &enabled, &lastStatus, &lastCheckedAt,
+			&headersText, &requestBody, &expectedBodyContains, &slackWebhook, &enabled, &lastStatus, &lastCheckedAt,
 			&lastResponseTime, &createdAt, &updatedAt, &uptimePercent); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to parse monitors"})
 		}
@@ -76,6 +78,7 @@ func (h *Handler) ListMonitors(c *fiber.Ctx) error {
 			"headers":                   headersText,
 			"request_body":              requestBody,
 			"expected_body_contains":    expectedBodyContains,
+			"slack_webhook_url":        slackWebhook,
 			"enabled":                   enabled,
 			"last_status":               lastStatus,
 			"last_checked_at":           lastCheckedAt,
@@ -109,11 +112,11 @@ func (h *Handler) CreateMonitor(c *fiber.Ctx) error {
 	err = h.DB.QueryRowContext(c.Context(), `
 		INSERT INTO monitors (
 			id, user_id, name, url, type, method, expected_status_code, expected_response_time_ms,
-			check_interval_seconds, headers, request_body, expected_body_contains, enabled
-		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+			check_interval_seconds, headers, request_body, expected_body_contains, enabled, slack_webhook_url
+		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		RETURNING id
 	`, monitorID, userID, req.Name, req.URL, req.Type, req.Method, req.ExpectedStatusCode, req.ExpectedResponseTimeMS,
-		req.CheckIntervalSeconds, headersText, req.RequestBody, req.ExpectedBodyContains, req.Enabled).Scan(&id)
+		req.CheckIntervalSeconds, headersText, req.RequestBody, req.ExpectedBodyContains, req.Enabled, req.SlackWebhookURL).Scan(&id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create monitor"})
 	}
@@ -145,10 +148,10 @@ func (h *Handler) UpdateMonitor(c *fiber.Ctx) error {
 		UPDATE monitors
 		SET name=?, url=?, type=?, method=?, expected_status_code=?, expected_response_time_ms=?,
 			check_interval_seconds=?, headers=?, request_body=?, expected_body_contains=?,
-			enabled=?, updated_at=CURRENT_TIMESTAMP
+			enabled=?, slack_webhook_url=?, updated_at=CURRENT_TIMESTAMP
 		WHERE id=? AND user_id=?
 	`, req.Name, req.URL, req.Type, req.Method, req.ExpectedStatusCode, req.ExpectedResponseTimeMS,
-		req.CheckIntervalSeconds, headersText, req.RequestBody, req.ExpectedBodyContains, req.Enabled, monitorID, userID)
+		req.CheckIntervalSeconds, headersText, req.RequestBody, req.ExpectedBodyContains, req.Enabled, req.SlackWebhookURL, monitorID, userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update monitor"})
 	}
@@ -204,7 +207,7 @@ func (h *Handler) GetMonitorDetails(c *fiber.Ctx) error {
 	row := h.DB.QueryRowContext(c.Context(), `
 		SELECT m.id, m.name, m.url, m.type, m.method, m.expected_status_code, m.expected_response_time_ms,
 			m.check_interval_seconds, COALESCE(m.headers, '{}'), m.request_body, m.expected_body_contains,
-			m.enabled, m.last_status, m.last_checked_at, m.last_response_time_ms, m.created_at, m.updated_at,
+			m.slack_webhook_url, m.enabled, m.last_status, m.last_checked_at, m.last_response_time_ms, m.created_at, m.updated_at,
 			COALESCE((
 				SELECT ROUND(100.0 * SUM(CASE WHEN status='UP' THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 2)
 				FROM monitor_checks mc WHERE mc.monitor_id = m.id
@@ -215,7 +218,7 @@ func (h *Handler) GetMonitorDetails(c *fiber.Ctx) error {
 	var (
 		id, name, url, monitorType, method, headersText string
 		expectedStatus, expectedResp, interval          int
-		requestBody, expectedBodyContains               *string
+		requestBody, expectedBodyContains, slackWebhook *string
 		enabled                                         bool
 		lastStatus                                      *string
 		lastCheckedAt                                   *time.Time
@@ -224,7 +227,7 @@ func (h *Handler) GetMonitorDetails(c *fiber.Ctx) error {
 		uptimePercent                                   float64
 	)
 	if err := row.Scan(&id, &name, &url, &monitorType, &method, &expectedStatus, &expectedResp, &interval,
-		&headersText, &requestBody, &expectedBodyContains, &enabled, &lastStatus, &lastCheckedAt,
+		&headersText, &requestBody, &expectedBodyContains, &slackWebhook, &enabled, &lastStatus, &lastCheckedAt,
 		&lastResponseTime, &createdAt, &updatedAt, &uptimePercent); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "monitor not found"})
 	}
@@ -240,6 +243,7 @@ func (h *Handler) GetMonitorDetails(c *fiber.Ctx) error {
 		"headers":                   headersText,
 		"request_body":              requestBody,
 		"expected_body_contains":    expectedBodyContains,
+		"slack_webhook_url":        slackWebhook,
 		"enabled":                   enabled,
 		"last_status":               lastStatus,
 		"last_checked_at":           lastCheckedAt,
@@ -287,6 +291,11 @@ func (h *Handler) GetMonitorDetails(c *fiber.Ctx) error {
 func validateMonitorRequest(req monitorRequest) error {
 	if req.Name == "" || req.URL == "" || req.Type == "" || req.Method == "" {
 		return fmt.Errorf("name, url, type and method are required")
+	}
+	if req.SlackWebhookURL != nil && *req.SlackWebhookURL != "" {
+		if !strings.HasPrefix(*req.SlackWebhookURL, "https://hooks.slack.com/") {
+			return fmt.Errorf("invalid slack webhook url (must start with https://hooks.slack.com/)")
+		}
 	}
 	if req.ExpectedStatusCode < 100 || req.ExpectedStatusCode > 599 {
 		return fmt.Errorf("expected_status_code must be between 100 and 599")

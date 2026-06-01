@@ -22,6 +22,7 @@ type Monitor struct {
 	Headers                *string    `json:"headers"`
 	RequestBody            *string    `json:"request_body"`
 	ExpectedBodyContains   *string    `json:"expected_body_contains"`
+	SlackWebhookURL        *string    `json:"slack_webhook_url"`
 	Enabled                bool       `json:"enabled"`
 	LastStatus             *string    `json:"last_status"`
 	LastCheckedAt          *time.Time `json:"last_checked_at"`

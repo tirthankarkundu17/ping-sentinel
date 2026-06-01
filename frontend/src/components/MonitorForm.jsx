@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
 
 const intervals = [
+  { label: "10 seconds", value: 10 },
   { label: "30 seconds", value: 30 },
   { label: "1 minute", value: 60 },
+  { label: "2 minutes", value: 120 },
   { label: "5 minutes", value: 300 },
   { label: "10 minutes", value: 600 },
+  { label: "30 minutes", value: 1800 },
+  { label: "1 hour", value: 3600 },
+  { label: "Custom...", value: "custom" },
 ];
 
 const defaultMonitor = {
@@ -32,6 +37,17 @@ export default function MonitorForm({ initialValue, onSubmit, onCancel }) {
         }
       : defaultMonitor
   );
+  
+  const [selectedInterval, setSelectedInterval] = useState(() => {
+    const val = initialValue ? initialValue.check_interval_seconds : defaultMonitor.check_interval_seconds;
+    return intervals.some((it) => it.value === val) ? val : "custom";
+  });
+
+  const [customIntervalValue, setCustomIntervalValue] = useState(() => {
+    const val = initialValue ? initialValue.check_interval_seconds : defaultMonitor.check_interval_seconds;
+    return intervals.some((it) => it.value === val) ? "45" : String(val);
+  });
+
   const [error, setError] = useState("");
   const title = useMemo(() => (initialValue ? "Edit Monitor" : "New Monitor"), [initialValue]);
 
@@ -46,12 +62,18 @@ export default function MonitorForm({ initialValue, onSubmit, onCancel }) {
       return;
     }
 
+    const interval = selectedInterval === "custom" ? Number(customIntervalValue) : Number(selectedInterval);
+    if (isNaN(interval) || interval < 5 || interval > 86400) {
+      setError("Check interval must be an integer between 5 and 86,400 seconds.");
+      return;
+    }
+
     await onSubmit({
       ...form,
       headers: headersObj,
       expected_status_code: Number(form.expected_status_code),
       expected_response_time_ms: Number(form.expected_response_time_ms),
-      check_interval_seconds: Number(form.check_interval_seconds),
+      check_interval_seconds: interval,
       request_body: form.request_body || null,
       expected_body_contains: form.expected_body_contains || null,
     });
@@ -128,8 +150,11 @@ export default function MonitorForm({ initialValue, onSubmit, onCancel }) {
         <Field label="Check Interval">
           <select
             className="w-full rounded-md border border-slate-300 px-3 py-2"
-            value={form.check_interval_seconds}
-            onChange={(e) => setForm({ ...form, check_interval_seconds: e.target.value })}
+            value={selectedInterval}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedInterval(val === "custom" ? "custom" : Number(val));
+            }}
           >
             {intervals.map((it) => (
               <option key={it.value} value={it.value}>
@@ -138,6 +163,19 @@ export default function MonitorForm({ initialValue, onSubmit, onCancel }) {
             ))}
           </select>
         </Field>
+        {selectedInterval === "custom" && (
+          <Field label="Custom Interval (seconds)">
+            <input
+              type="number"
+              min="5"
+              max="86400"
+              className="w-full rounded-md border border-slate-300 px-3 py-2"
+              value={customIntervalValue}
+              onChange={(e) => setCustomIntervalValue(e.target.value)}
+              required
+            />
+          </Field>
+        )}
         <Field label="Enabled">
           <input
             type="checkbox"

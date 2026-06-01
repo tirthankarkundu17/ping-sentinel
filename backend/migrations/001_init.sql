@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS monitors (
   method TEXT NOT NULL CHECK (method IN ('GET', 'POST', 'PUT', 'DELETE')),
   expected_status_code INT NOT NULL,
   expected_response_time_ms INT NOT NULL,
-  check_interval_seconds INT NOT NULL CHECK (check_interval_seconds IN (30, 60, 300, 600)),
+  check_interval_seconds INT NOT NULL CHECK (check_interval_seconds >= 5),
   headers TEXT DEFAULT '{}',
   request_body TEXT,
   expected_body_contains TEXT,

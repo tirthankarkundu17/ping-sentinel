@@ -1,4 +1,4 @@
-# API + Website Monitoring App
+# PingSentinel - API + Website Monitoring App
 
 Full-stack monitoring app with:
 - Frontend: React + TailwindCSS
@@ -10,58 +10,67 @@ Full-stack monitoring app with:
 
 ## Features
 
-- User sign up/login with JWT auth
-- Per-user monitor management (CRUD + enable/disable)
-- Supports monitor type: `website` / `api`
-- HTTP methods: `GET`, `POST`, `PUT`, `DELETE`
-- Configurable expected status code, response-time threshold, interval, headers, body
-- Background monitor checks at `30s`, `1m`, `5m`, `10m`
-- Stores check history and error logs
-- Dashboard overview with UP/DOWN and average response time
-- Monitor details page with status/response graphs and last 50 checks
+- **User Authentication**: Secure user sign up/login with JWT-based auth.
+- **Monitor Management**: Per-user monitor management (CRUD + enable/disable).
+- **Flexible Request Types**: Supports monitor types: `website` / `api` with HTTP methods: `GET`, `POST`, `PUT`, `DELETE`.
+- **Advanced Request Configuration**: Custom request headers, request bodies, and custom check intervals (from 5s up to 24h).
+- **Response Validation**: Validates response status code, response time threshold, and response body content checking (`expected_body_contains`).
+- **Real-time Alerting**: Sends Slack alerts via webhooks immediately on monitor status transition (UP ↔ DOWN).
+- **Background Runner**: High-performance Go polling worker checking targets concurrently.
+- **Metrics & History**: Automatic pruning of historical checks (configurable TTL) with database indices for rapid performance.
+- **Dashboard Overview**: Summary statistics showing total, UP, and DOWN monitors, alongside average response times.
+- **Interactive Details**: Detailed charts of status and response latency over time, along with access to the last 50 checks.
 
 ## Project Structure
 
-- `backend`: Fiber API service
-- `frontend`: React web app
-- `worker`: Go polling worker service
-- `backend/migrations/001_init.sql`: initial schema
+- [backend](file:///d:/Projects/ping-sentinel/backend): Go + Fiber API service.
+- [worker](file:///d:/Projects/ping-sentinel/worker): Go polling worker service that runs background checks and prunes history.
+- [frontend](file:///d:/Projects/ping-sentinel/frontend): React + TailwindCSS + Vite single-page application.
+- [backend/migrations/001_init.sql](file:///d:/Projects/ping-sentinel/backend/migrations/001_init.sql): Initial SQLite database schema.
+- [docs/ping-sentinel-backend.postman_collection.json](file:///d:/Projects/ping-sentinel/docs/ping-sentinel-backend.postman_collection.json): Postman collection containing all REST API endpoints for quick testing.
 
 ## Development with Makefile
 
-A `Makefile` is provided as a shortcut for common development tasks:
+A [Makefile](file:///d:/Projects/ping-sentinel/Makefile) is provided as a shortcut for common development tasks:
 
 | Command | Description |
 | ------- | ----------- |
 | `make install` | Install dependencies (Go modules and npm packages) |
+| `make run` | Run all services (Backend, Worker, Frontend) locally in parallel |
 | `make run-api` | Run the Backend API locally |
 | `make run-worker` | Run the Worker service locally |
 | `make run-web` | Run the Frontend React app locally |
-| `make docker-up` | Build and start services using Docker Compose |
+| `make docker-up` | Build and start services using Docker Compose in background |
 | `make docker-down` | Stop and remove Docker containers |
 | `make docker-rebuild` | Rebuild and restart services |
-| `make docker-push` | Build and push single-arch images to Docker Hub |
-| `make docker-multi-push` | Build and push multi-arch (amd64/arm64) images |
+| `make docker-push` | Build and push single-arch images to Docker Hub for all services |
+| `make docker-multi-push SERVICE=<name>` | Build and push a multi-arch (amd64/arm64) image for a specific service |
+| `make docker-multi-push-all` | Build and push multi-arch images for all services |
 | `make tidy` | Run `go mod tidy` in backend and worker |
-| `make clean` | Remove build artifacts and local database |
+| `make clean` | Remove build artifacts and local SQLite database |
 
 ## Docker Hub Deployment
 
-The `Makefile` supports building and pushing images to Docker Hub. By default, it uses your system username as the Docker Hub namespace.
+The [Makefile](file:///d:/Projects/ping-sentinel/Makefile) supports building and pushing images to Docker Hub. By default, it uses your system username as the Docker Hub namespace.
 
 ```bash
-# Push single-arch images
+# Push single-arch images for all services
 make docker-push DOCKER_USER=your_username VERSION=v1.0.0
 
-# Push multi-arch images (requires Docker Buildx)
-make docker-multi-push DOCKER_USER=your_username VERSION=v1.0.0
+# Push multi-arch images for a specific service (requires Docker Buildx)
+make docker-multi-push SERVICE=backend DOCKER_USER=your_username VERSION=v1.0.0
+
+# Push multi-arch images for all services (requires Docker Buildx)
+make docker-multi-push-all DOCKER_USER=your_username VERSION=v1.0.0
 ```
 
 ## CI/CD Pipeline
 
-A GitHub Actions workflow is provided (located in `.github/workflows/docker-publish.yml`) that automatically builds and pushes multi-architecture images whenever:
+A GitHub Actions workflow is provided (located in [.github/workflows/docker-publish.yml](file:///d:/Projects/ping-sentinel/.github/workflows/docker-publish.yml)) that automatically builds and pushes multi-architecture images whenever:
 - A push is made to the `main` branch (tags as `:latest`).
 - A version tag (e.g., `v1.2.3`) is pushed.
+- A workflow is manually triggered via `workflow_dispatch`.
+- A Pull Request to the `main` branch is opened or synchronized with the label `build`.
 
 ### Required Secrets
 
@@ -78,15 +87,14 @@ To use the automated pipeline, you must add the following **GitHub Secrets** to 
 
 ## Quick Start (Docker)
 
-
-1. Build and start everything:
+1. Build and start all services:
 
 ```bash
-docker compose up --build
+make docker-up
+# or: docker compose up --build -d
 ```
 
-2. Open app:
-
+2. Open the application:
 - Frontend: http://localhost:5173
 - Backend health: http://localhost:8080/api/health
 
@@ -96,58 +104,86 @@ Prerequisites:
 - Go 1.23+
 - Node 22+
 
-1. Backend:
+1. Install all dependencies:
+```bash
+make install
+```
 
+2. Setup Environment Variables:
+
+Create the environment config files in their respective folders:
+- **Backend Env** ([backend/.env](file:///d:/Projects/ping-sentinel/backend/.env)):
+  ```ini
+  HOST=localhost
+  PORT=8080
+  DATABASE_URL=./monitoring.db
+  JWT_SECRET=super_secret_jwt_key
+  ALLOWED_ORIGIN=http://localhost:5173
+  ```
+- **Worker Env** ([worker/.env](file:///d:/Projects/ping-sentinel/worker/.env)):
+  ```ini
+  DATABASE_URL=../backend/monitoring.db
+  WORKER_POLL_INTERVAL_SECONDS=30
+  MONITOR_CHECK_TTL_DAYS=7
+  ```
+- **Frontend Env** ([frontend/.env](file:///d:/Projects/ping-sentinel/frontend/.env)):
+  ```ini
+  VITE_API_URL=http://localhost:8080/api
+  ```
+
+3. Run the services:
+
+You can run all services concurrently:
+```bash
+make run
+```
+Or run them individually:
+- **Backend**: `make run-api` (runs `go run ./cmd/server` in [backend](file:///d:/Projects/ping-sentinel/backend))
+- **Worker**: `make run-worker` (runs `go run .` in [worker](file:///d:/Projects/ping-sentinel/worker))
+- **Frontend**: `make run-web` (runs `npm run dev` in [frontend](file:///d:/Projects/ping-sentinel/frontend))
+
+4. Database Schema:
+- The backend Fiber service will automatically initialize and run any needed migrations on the SQLite database (`DATABASE_URL`) at startup using [backend/migrations/001_init.sql](file:///d:/Projects/ping-sentinel/backend/migrations/001_init.sql).
+
+## Running Tests
+
+Automated tests are available for the backend and the worker service.
+
+### Backend Tests
 ```bash
 cd backend
-cp .env.example .env
-go mod tidy
-go run ./cmd/server
+go test ./...
 ```
 
-2. Worker:
-
+### Worker Tests
 ```bash
 cd worker
-cp .env.example .env
-go mod tidy
-go run .
+go test ./...
 ```
-
-3. Frontend:
-
-```bash
-cd frontend
-cp .env.example .env
-npm install
-npm run dev
-```
-
-4. Apply SQL schema:
-- Schema is applied automatically by the backend on startup to the SQLite database file.
 
 ## Manual Verification Checklist
 
-- Auth:
+- **Authentication**:
   - Sign up a new user.
   - Login with created credentials.
   - Verify monitors from another user are not visible.
 
-- Monitor CRUD:
-  - Create Website monitor and API endpoint monitor.
-  - Edit method, thresholds, headers/body.
-  - Disable and re-enable monitor.
-  - Delete monitor.
+- **Monitor CRUD & Configuration**:
+  - Create a Website monitor and an API endpoint monitor.
+  - Configure custom method (`GET`/`POST`/`PUT`/`DELETE`), request body, headers, and validation options like expected response status code, response time threshold, and body pattern matching (`expected_body_contains`).
+  - Toggle a monitor's enabled/disabled state.
+  - Update and delete a monitor.
 
-- Monitoring:
-  - Verify checks appear in monitor details within configured interval.
-  - Confirm status changes to `DOWN` on invalid expected status code.
-  - Confirm error message appears for failures/timeouts.
+- **Monitoring Execution & Alerts**:
+  - Verify checks appear in the monitor details page within the configured interval.
+  - Confirm status transitions to `DOWN` on invalid status codes, response timeouts, or missing body search patterns.
+  - Verify Slack webhook alerts trigger on state changes (UP ↔ DOWN).
+  - Confirm error messages are logged for failures/timeouts.
 
-- Dashboard/Details:
-  - Overview cards update total/up/down/avg response.
-  - Monitor table shows last check and uptime %.
-  - Details page graphs update and last 50 checks render.
+- **Dashboard / Details Visuals**:
+  - Overview cards update total, up, down, and average response times.
+  - Monitor table displays the last check status and calculated uptime percentage.
+  - Details page charts show the latency and status history, listing the last 50 checks.
 
 ## API Endpoints
 
